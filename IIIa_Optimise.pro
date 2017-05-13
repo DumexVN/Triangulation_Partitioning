@@ -7,7 +7,10 @@ SOURCES += \
     main.cpp
 
 HEADERS += \
-    util.h
+    util.h \
+    graphgen.h \
+    graphutil.h \
+    graphgeo.h
 
 INCLUDEPATH += "C:\Boost\boost_1_56_0"
 

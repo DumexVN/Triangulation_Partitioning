@@ -75,6 +75,50 @@ private:
     }
 
 public:
+
+    /// Write a matrix to file
+    /// The matrix is in unconventional form
+    /// each vector is the height, so it is a rather 'vertical' matrix instead of a horizontal
+    ///
+    ///
+    template<typename T>
+    static void writeMatrixToFile(const std::vector<std::vector<T> > &matrix,
+                                  const char * outPath,
+                                  const char &delim)
+    {
+        std::ofstream outfile;
+        outfile.open(outPath);
+        long int w = matrix.size(), h = matrix[0].size();
+        for (int j = 0; j < h; j++)
+        {
+            for (int i = 0; i < w; i++) outfile << matrix[i][j] << delim;
+            outfile << '\n';
+        }
+        outfile.close();
+    }
+
+    ///
+    /// \brief fractionOfIntraEdge: calculate fraction of incorrect edge i.e. intra edge
+    /// \param hier: the hierarchy
+    /// \param l: number of edge per block
+    /// \param k: number of edge per vertex
+    /// \return: fraction
+    ///
+    static double fractionOfIntraEdge(const std::vector<std::pair<uint32, uint32> > &hier,
+                                      const int &l, const int &k)
+    {
+        uint32 e = l*k*4; //total number of vertex
+        uint32 incorrect = 0;
+        for (int i = 0; i < hier.size(); i++)
+        {
+            std::pair<uint32,uint32> edge = hier.at(i);
+            uint32 from = edge.first, to = edge.second;
+            if ( (from/l) != (to/l) ) incorrect++;
+        }
+        return (double)incorrect/e;
+    }
+
+
     ///
     /// \brief Util::NumberOfCommonElement
     /// \param vec1
@@ -196,6 +240,7 @@ public:
          double RAND = (double) (a+d)/(a+b+c+d);
          double Jaccard = (double) a/(a+b+c);
 
+         //check sum
          assert((a+b+c+d == n_choose_2) && "FATAL ERROR WHILE CALCULATING PAIRWISE MATCHING");
       //   qDebug() << a/(a+b+c);
          //
