@@ -705,16 +705,15 @@ void autoRunHiddenBlockModel()
     std::string record = "*AutoRunHiddenBlockModel: Within Edge = 2 Inter-edge";
     record += "\nn\tq\tp\tk\t#Comp\tfractionofWrongEdge\tRAND\tJACCARD\tARI\n";
     //params
-    int l_min = 5000,
-        l_max = 5000,
+    int l_min = 500,
+        l_max = 3500,
         l_step = 500,
         no_runs = 5;
     for (int l = l_min; l <= l_max; l += l_step)
     {
         int n = l*4;
-        double c = 0.45;
-        double p_threshold = 1/(pow(n,c)), // p is kept at the threshold
-               max_q = 10*p_threshold, //twice as many inter-cluster edges
+        double p_threshold = sqrt(n)/(n), // p is kept at the threshold
+               max_q = 2.6*2.6*2*p_threshold, //twice as many inter-cluster edges
                q_stepsize = p_threshold;
                //q_stepsize = (q_threshold*4)/10;
         for (double q = 0.0; q < max_q ; q+=q_stepsize)
@@ -888,9 +887,8 @@ void geoGraphExp(const char * filePath, const double &limitingDistance)
     for (int k = 1; k <= 4; k++)
     {
         std::vector<edge> hier;
-        std::vector<uint> isolated;
         //kMT(G,hier,k);
-        kMT(G,hier,isolated,k,80);
+        kMT(G,hier,k,);
         std::stringstream ss;
         /* Saving the current kMXT
          *
@@ -1110,13 +1108,12 @@ float community_clustering_coefficient(const Graph &in,
 int main(int argc, char *argv[])
 {
     //geo graph but load edge
-    //geoGraphExp("C:/Users/Dumex/Desktop/Small_Set/tralfagar.txt", 0.01);
-    //return 0;
-    /* BLOCK MODEL EXP*/
-  // autoRunHiddenBlockModel_FixedDegree_FixedPrThreshold(1000,2000,10,2);
-    autoRunHiddenBlockModel();
-  // HiddenBlockModel_ClusteringCoefficient_EXP(2500);
+    geoGraphExp("C:/Users/Dumex/Desktop/Small_Set/tralfagar.txt", 0.015);
     return 0;
+    /* BLOCK MODEL EXP*/
+  //  autoRunHiddenBlockModel_FixedDegree_FixedPrThreshold(1000,2000,10,2);
+  // autoRunHiddenBlockModel();
+  //  HiddenBlockModel_ClusteringCoefficient_EXP(2500);
     gen.seed(time(0) + _getpid());
     /*
     for (int k = 10; k <= 15; k++)

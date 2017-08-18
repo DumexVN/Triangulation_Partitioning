@@ -28,19 +28,66 @@ public:
     void getPos(const std::vector<uint> &vertex,
                 std::vector<geo> &pos)
     {
-        uint precision = 10000;
+        //uint precision = 1000000;
         //do work
         for (int i = 0; i < vertex.size(); i++)
         {
             uint v_id = vertex.at(i);
             assert((v_id < V.size()) && "INDEX OUT OF BOUND WHILE GETTING GEO POS\n");
             geo unrounded = V.at(v_id).second;
-            double roundlat = roundf(unrounded.first * precision) / precision,
+            /*double roundlat = roundf(unrounded.first * precision) / precision,
                    roundlong = roundf(unrounded.second * precision) / precision;
-            pos.push_back(std::pair<double,double>(roundlat,roundlong));
+            pos.push_back(std::pair<double,double>(roundlat,roundlong));*/
+            pos.push_back(std::pair<double,double>(unrounded.first,unrounded.second));
         }
     }
 
+    ///
+    /// \brief removeWithinPolygons:given an array of polygons,
+    /// remove smaller polygons which completely reside within others
+    /// \param polygons: input set of polygons
+    ///
+    void removeWithinPolygons(std::vector<std::vector<geo> > &polygons)
+    {
+        //namespace
+        namespace bg = boost::geometry;
+        typedef bg::model::point<double, 2, bg::cs::cartesian> point_t;
+        typedef bg::model::polygon<point_t> poly;
+        //create polygons
+        std::vector<poly> inputPolys;
+
+        for(int i = 0; i < polygons.size(); i++)
+        {
+            poly polygon;
+            std::vector<geo> points = polygons.at(i);
+            std::vector<point_t> ps;
+            for(int j = 0; j < points.size(); j++) ps.push_back(point_t(points[j].first, points[j].second));
+            bg::assign_points(polygon,ps);
+            inputPolys.push_back(polygon);
+        }
+        //Finding which polygon is located within others
+        std::vector<int> toBeRemoved;
+        for(int i = 0; i < inputPolys.size();i++)
+        {
+            poly polygon = inputPolys.at(i);
+            for(int j = 0; j < inputPolys.size(); j++)
+            {
+                if (i == j) continue;
+                if(bg::within(polygon, inputPolys.at(j)))
+                {
+                    toBeRemoved.push_back(i);
+                    break;
+                }
+            }
+        }
+        //removing polygons
+        printf("Removed:%d\n", toBeRemoved.size());
+        for(int i = 0; i < toBeRemoved.size(); i++)
+        {
+            polygons[toBeRemoved[i]].clear();
+        }
+        //DONE
+    }
     ///
     /// \brief convexHull: generate a convex hull covering all points given in &in
     /// \param in: input-sets of point
@@ -80,6 +127,8 @@ public:
     bool generateGeoDiscGraph(std::vector<std::vector<uint> > &G,
                               const double &d )
     {   //init
+        printf("Building Geometric Graph...");
+        std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now(); //start timer
         uint n = V.size(),
              e = 0;
         for (int i = 0; i < n; i++) G.push_back(std::vector<uint>());
@@ -100,6 +149,9 @@ public:
                 }
             }
         }
+        std::chrono::high_resolution_clock::time_point end = std::chrono::high_resolution_clock::now(); //end timer
+        std::chrono::duration<double> elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
+        printf("\n ** Finished Building Graph! Elapsed time: %f sec \n", (elapsed));
         printf("Geometric Graph Generated: V %d - E %d", n, e);
         return true;
     }
@@ -146,8 +198,10 @@ public:
             printf("File Erorr! Terminating ...");
             return false;
         }
+        printf("Parsing Input...\n");
         std::string line;
         std::vector<vertex> vList;
+        std::set<geo> uniqueGeo;
         int line_count = 0;
         while (std::getline(infile, line))
         {
@@ -162,7 +216,7 @@ public:
             uint id = std::atoi(tokenVec.at(2).c_str());
             double lat = std::atof(tokenVec.at(0).c_str()),
                    lon = std::atof(tokenVec.at(1).c_str());
-            vList.push_back(vertex(id, geo(lat,lon))); //create new vertex and append
+            vList.push_back(vertex(id,geo(lat,lon)));
         }
         std::sort(vList.begin(), vList.end(), [](const vertex &v, const vertex &u) {
                return v.first < u.first;

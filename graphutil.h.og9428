@@ -38,13 +38,11 @@ public:
     static float get_average_diameter_of_subgraphs(const Graph &G,
                                                    const std::vector<std::vector<uint> > &communities)
     {
-        printf("\nCalculating average diameter...");
         std::vector<Graph> subgraphs;
         get_subgraphs_induced_by_communities(G, communities, subgraphs);
         size_t sumDiameter = 0;
         for (int i = 0; i < subgraphs.size(); i++)  sumDiameter += get_graph_diameter(subgraphs[i]);
         return (float) sumDiameter/subgraphs.size();
-        printf("\nDone !");
     }
 
     ///
@@ -59,6 +57,7 @@ public:
     {
         for (int i = 0; i < E.size(); i++)
         {
+            if (i%100000==0)    printf("100k\n");
             edge e = E[i];
             uint from = e.first, to = e.second;
             adj_list fromAdj = G[from],
@@ -310,7 +309,6 @@ public:
     static double modularity(const Graph &G,
                              const std::vector<std::vector<uint> > &communities)
     {
-        printf("\nCalculating Modularity of communities\n");
         uint sumD = 0;
         double Q = 0.0;
         for (int i = 0; i < G.size(); i++)  sumD += G[i].size();
@@ -335,7 +333,6 @@ public:
                    fracD = (double) sumDeg/sumD;
             Q += fracE - fracD*fracD;
         }
-        printf("Q Done!\n");
         return Q;
     }
     ///

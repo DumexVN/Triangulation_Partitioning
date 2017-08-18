@@ -423,10 +423,6 @@ static bool edgeComparator(const edge & a, const edge & b)
 ///
 bool read_input(const char * filepath, std::vector<edge> &raw_edge, uint &MAX_V)
 {
-    std::string exceptionFile("network.dat");
-    //do reading
-    std::string path(filepath);
-    bool except = (path.find(exceptionFile)!=std::string::npos);
     uint MIN_V = 0;
     std::ifstream infile(filepath);
     std::set<edge, bool(*)(const edge &a, const edge &b)> s(&edgeComparator);
@@ -445,7 +441,6 @@ bool read_input(const char * filepath, std::vector<edge> &raw_edge, uint &MAX_V)
             printf("Error While Reading Input! Terminating ...");
             return false;
         } // error
-        if(except){ a-=1;   b-=1;}
         // process pair (a,b)
         if (std::max(a,b) > MAX_V)  MAX_V = std::max(a,b);
         if (std::min(a,b) < MIN_V)  MIN_V = std::min(a,b);
@@ -705,16 +700,15 @@ void autoRunHiddenBlockModel()
     std::string record = "*AutoRunHiddenBlockModel: Within Edge = 2 Inter-edge";
     record += "\nn\tq\tp\tk\t#Comp\tfractionofWrongEdge\tRAND\tJACCARD\tARI\n";
     //params
-    int l_min = 5000,
-        l_max = 5000,
+    int l_min = 500,
+        l_max = 3500,
         l_step = 500,
         no_runs = 5;
     for (int l = l_min; l <= l_max; l += l_step)
     {
         int n = l*4;
-        double c = 0.45;
-        double p_threshold = 1/(pow(n,c)), // p is kept at the threshold
-               max_q = 10*p_threshold, //twice as many inter-cluster edges
+        double p_threshold = sqrt(n)/(n), // p is kept at the threshold
+               max_q = 2.6*2.6*2*p_threshold, //twice as many inter-cluster edges
                q_stepsize = p_threshold;
                //q_stepsize = (q_threshold*4)/10;
         for (double q = 0.0; q < max_q ; q+=q_stepsize)
@@ -882,15 +876,14 @@ void geoGraphExp(const char * filePath, const double &limitingDistance)
     success = geoG.generateGeoDiscGraph(G, limitingDistance);
     if (!success){printf("GeoGraph Generating: Failed!\n"); return;}
     //save the graph
-    //GraphUtil::saveGraphAsUniqueEdgeList(G, "C:/Users/Dumex/Desktop/Small_Set/KMXT/Tralfagar/geograph.txt", ',');
+    //GraphUtil::saveGraphAsUniqueEdgeList(G, "C:/Users/Dumex/Desktop/geograph.txt", '\t');
     //do work
     //
     for (int k = 1; k <= 4; k++)
     {
         std::vector<edge> hier;
-        std::vector<uint> isolated;
         //kMT(G,hier,k);
-        kMT(G,hier,isolated,k,80);
+        //kMT(G,hier,k,80);
         std::stringstream ss;
         /* Saving the current kMXT
          *
@@ -908,7 +901,7 @@ void geoGraphExp(const char * filePath, const double &limitingDistance)
         std::ostringstream sizedis, sizedis_file, ashapeinput;
         //FILE HEADERS
         sizedis << "comm;size\n";
-        sizedis_file << "C:/Users/Dumex/Desktop/Small_Set/KMXT/Tralfagar/clusterSize_d" << limitingDistance <<"_k"  << k << ".txt";
+        sizedis_file << "C:/Users/Dumex/Desktop/Tokyo_EXP/clusterSize_d" << limitingDistance <<"_k"  << k << ".txt";
         // CALCULATE AVERAGE SIZE
         for (int i = 0; i < communities.size(); i++)
         {
@@ -957,7 +950,7 @@ void geoGraphExp(const char * filePath, const double &limitingDistance)
         writeStringToFile(&sizedis.str()[0], &sizedis_file.str()[0]);
         //WRITE CONVEX HULL TO FILE
         std::stringstream oo;
-        oo << "C:/Users/Dumex/Desktop/Small_Set/KMXT/Tralfagar/ConvexHull_" << k << "/";
+        oo << "C:/Users/Dumex/Desktop/Tokyo_EXP/ConvexHull_" << k << "/";
         geoG.removeWithinPolygons(allpos); //uncomment this line to remove all polygons reside within others
         saveConvexHulls(allpos, &oo.str()[0]); //CONVEX HULL FOR DRAWING ON QGIS
         saveConvexHullsPolygon(allpos, &oo.str()[0]); //CONVEX HULL FOR DENSITY CALCULATION
@@ -1062,7 +1055,6 @@ void geoGraphExp(const Graph &G)
 float community_clustering_coefficient(const Graph &in,
                                       const std::vector<std::vector<uint> > &communities)
 {
-    printf("\nCalulating clustering coefficient of induced subgraphs...");
     //get the new graph
     Graph G;
     GraphUtil::isolate_communities(in, communities, G);
@@ -1096,7 +1088,6 @@ float community_clustering_coefficient(const Graph &in,
             std::cout << boost::get(cm, *i) << '\n';
         }
         */
-    printf("!\nDone !!!");
    return cc;
 }
 
@@ -1110,13 +1101,11 @@ float community_clustering_coefficient(const Graph &in,
 int main(int argc, char *argv[])
 {
     //geo graph but load edge
-    //geoGraphExp("C:/Users/Dumex/Desktop/Small_Set/tralfagar.txt", 0.01);
-    //return 0;
+    //geoGraphExp("C:/Users/Dumex/Desktop/Small_Set/towerbridge.txt", 0.05);
     /* BLOCK MODEL EXP*/
-  // autoRunHiddenBlockModel_FixedDegree_FixedPrThreshold(1000,2000,10,2);
-    autoRunHiddenBlockModel();
-  // HiddenBlockModel_ClusteringCoefficient_EXP(2500);
-    return 0;
+  //  autoRunHiddenBlockModel_FixedDegree_FixedPrThreshold(1000,2000,10,2);
+  // autoRunHiddenBlockModel();
+  //  HiddenBlockModel_ClusteringCoefficient_EXP(2500);
     gen.seed(time(0) + _getpid());
     /*
     for (int k = 10; k <= 15; k++)
@@ -1153,23 +1142,21 @@ int main(int argc, char *argv[])
         Graph G;
         bool build = build_graph(rawEdge, MAX_V, G);
         if (!build) {printf("Problem While Building Graph ! Terminating ... \n"); return 0;}
-        GraphUtil::saveGraphAsUniqueEdgeList(G,"C:/Users/Dumex/Desktop/Social_Final/LFR/smaller/gephi_in.csv", ',');
-        //return 0;
-        /*
+
         //get the edge weight distribution
         printf("\n ** Geting Edge W **\n");
         std::vector<uint> edgeW;
         GraphUtil::getEdgeTriangleDistribution(G, rawEdge, edgeW);
         std::ostringstream ws;
         for(size_t i = 0; i < edgeW.size(); i++)    ws << i << "\t" << edgeW[i] << '\n';
-        writeStringToFile(&ws.str()[0], "C:/Users/Dumex/Desktop/Social_Final/kmxt_w/lfr_n_10k_k50_maxk_100_size_10_1000/edgeWeight.txt");
+        writeStringToFile(&ws.str()[0], "C:/Users/Dumex/Desktop/Social_Final/kmxt_w/geometric/edgeWeight.txt");
         return 0;
-        //*/
-        float C = GraphUtil::graph_clustering_coefficient(rawEdge);
+        //
+        float C = 0 /*GraphUtil::graph_clustering_coefficient(rawEdge)*/;
         std::vector<std::vector<uint> > truthCommunities;
         readCommunityFile(truthCommunities, argv[4]);
-        //float groundTruthCC = community_clustering_coefficient(G, truthCommunities);
-        //printf("\n ------ CC of induced ground truth communities:\t%f------\n",groundTruthCC);
+        float groundTruthCC = community_clustering_coefficient(G, truthCommunities);
+        printf("\n ------ CC of induced ground truth communities:\t%f------\n",groundTruthCC);
         /*
          *  DOING WORK
          */
@@ -1181,11 +1168,11 @@ int main(int argc, char *argv[])
 
         //start processing
         std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now(); //start timer
-        //for(uint minWeight = 0; minWeight <= 220; minWeight+=20)
-        //for(uint k = 1; k <= 5; k++)
-        //{
+        for(uint minWeight = 0; minWeight <= 110; minWeight+=10)
+       // for(uint k = 1; k <= 5; k++)
+        {
         uint k = 2;
-        uint minWeight = 3;
+        //uint minWeight = 20;
         bool success = kMT(G,
                            hierarchy,
                            isolated,
@@ -1218,9 +1205,9 @@ int main(int argc, char *argv[])
         uint nonIsolatedVertices = G.size() - isolated.size();
         float Q = GraphUtil::modularity(G, communities),
               MC =  community_clustering_coefficient(G, communities),
-              mARI = Util::ComputePairWiseMatchingIndex(nonIsolatedVertices,
+              mARI = 0/*Util::ComputePairWiseMatchingIndex(nonIsolatedVertices,
                                                         modifiedCommunities,
-                                                        cleanedCommunities)[2], //*/,
+                                                        cleanedCommunities)[2]*/,
               averageDiam = GraphUtil::get_average_diameter_of_subgraphs(G, communities);
 
         FILE * statfile;
@@ -1250,7 +1237,8 @@ int main(int argc, char *argv[])
         //glolba clustering coefficient
         //calculate connected component clustering coefficient
         hierarchy.clear(); communities.clear(); isolated.clear(); //remove later
-        //}
+        }
+
     }
     else if (argc == 4 && argv[1][1] == 'q')    // ./ragg -q community1 community2
     {

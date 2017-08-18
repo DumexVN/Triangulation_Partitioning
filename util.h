@@ -19,6 +19,7 @@ class Util
     typedef unsigned long int uint32;
 
 private:
+
     static uint64 calA(std::vector<uint64> param)
     {
         uint64 a = param[0];
@@ -155,7 +156,7 @@ public:
          uint64 n_minus_1 = n-1, n_times_n_minus = n*n_minus_1;
          n_choose_2 = n_times_n_minus/2;
 
-         int row = ground_truth_communities.size(), column = large_result.size();
+         size_t row = ground_truth_communities.size(), column = large_result.size();
          std::vector<uint64> ni, nj; //ni: sum row, nj: sum column
          for(size_t j = 0; j < column; j++)
              nj.push_back(0);
@@ -164,7 +165,7 @@ public:
          {
              uint64 sum_row = 0;
              community X = ground_truth_communities[i];
-             for (int j = 0; j < column; j++)
+             for (size_t j = 0; j < column; j++)
              {
                  community Y = large_result[j];
                  uint32 entry = NumberOfCommonElement(X,Y); //sets are assumed to be sorted

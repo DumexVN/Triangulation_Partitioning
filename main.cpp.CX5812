@@ -25,9 +25,6 @@
 
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/connected_components.hpp>
-#include <boost/graph/clustering_coefficient.hpp>
-#include <boost/graph/erdos_renyi_generator.hpp>
-#include <boost/random/linear_congruential.hpp>
 
 //define typedef
 typedef unsigned long int uint;
@@ -73,7 +70,6 @@ void saveResult(const std::vector<uint> &component)
         return;
     }
     myfile.open (outPath);
-    myfile << "Id\tCluster\n";
     for (size_t i = 0; i < component.size(); i++)
     {
         myfile << i << '\t' << component[i] << '\n';
@@ -116,7 +112,7 @@ int postprocess(const std::vector<edge> &hierarchy,
 {
     typedef boost::adjacency_list<boost::setS, boost::vecS, boost::undirectedS> BoostGraph;
     BoostGraph BG;
-    for(size_t i = 0; i <= V; i++)   boost::add_vertex(BG);
+    for(size_t i = 0; i < V; i++)   boost::add_vertex(BG);
 
     for(auto &e : hierarchy)
     {
@@ -131,94 +127,11 @@ int postprocess(const std::vector<edge> &hierarchy,
     printf("\nNumber of Community: %lu \n", num);
     saveResult(component);
     saveHierResult(hierarchy,
-                   "C:/Users/Dumex/Desktop/Social_Final/karate/frags.txt",
-                    '\t');
+                   "C:/Users/Dumex/Qt_WorkingSpace/build-IIIa_Optimise-Desktop_Qt_5_7_0_MinGW_32bit-Debug/hier.txt",
+                    ';');
     return num;
 }
 
-
-/*-------------------------------------------------------------------------------------------------/
- *
- *                                          K-MXT Functions
- *
- *-------------------------------------------------------------------------------------------------*/
-///
-/// \brief kMT: in this version, the min weight is set as a function of a vertex
-/// i.e. minWeight(v) = d(v)/a where a > 0
-/// \param G: input Graph
-/// \param points_to: the oriented edge
-/// \param isolated: vertices which have no oriented edge
-/// \param k: number of oriented edge to include
-/// \param frac: fraction of degree of every vertex
-/// \return
-///
-bool kMT_f(const Graph &G,
-         std::vector<edge> &points_to,
-         std::vector<uint> &isolated,
-         const int &k,
-         const unsigned int &frac)
-{
-    if (frac == 0){printf("Fraction of Vertex's Degree Neeeds to be > 0! Terminating"); return 0;} //if frac == 0
-    printf("\n Now Doing k-MT(f) ... \n");
-    //declaring comparator for min heap
-    auto comparator =
-            [](const std::pair<uint,uint> &p1, const std::pair<uint,uint> &p2)
-            { return p1.first > p2.first; }; //lambda function, testing
-    //starting loop
-    std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now(); //start timer
-    for (size_t i = 0; i < G.size(); i++)
-    {
-        //init
-        adj_list v_adj = G[i]; // v adjacency list
-        uint minWeight = ceil( (float) v_adj.size()/frac);
-        //k-min-heap
-
-        std::priority_queue<std::pair<uint,uint>,
-                            std::vector<std::pair<uint,uint> >,
-                            decltype(comparator)> q(comparator);
-        //starting for vertex
-        for (size_t j = 0; j < v_adj.size(); j++)
-        {
-            //get neighbour vertex u adjacency
-            adj_list u_adj = G[v_adj[j]];
-            unsigned int comm = Util::NumberOfCommonElement(v_adj, u_adj); //number of common
-            if (comm < minWeight)   continue;   //if the edge weight is less than minWeight, skip
-            std::pair<uint,uint> p(comm, v_adj[j]); //storing as pair: <comm,index>
-            //get min of the heap
-            if (q.size() < k){q.push(p);continue;}
-            if (comm > q.top().first) //if number of comms is greater than top of min heap
-            {
-                    q.pop();
-                    q.push(p);
-            }
-            else if (comm == q.top().first) //if equal, take 1 at ran
-            {
-                std::uniform_real_distribution<double> dist(0, 1);
-                if(dist(gen) <= 0.5)
-                {
-                    q.pop();
-                    q.push(p);
-                }
-            }
-        }
-        if (q.empty())  isolated.push_back(i); //if q is empty then V[i] is isolated
-        // points to the highest common neighbours
-        while(!q.empty())
-        {
-            std::pair<uint,uint> p = q.top();
-            points_to.push_back(edge(i,p.second)); //return the index of chosen vertex
-            q.pop();
-        }
-    }
-    std::chrono::high_resolution_clock::time_point end = std::chrono::high_resolution_clock::now(); //end timer
-    std::chrono::duration<double> elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
-    printf("\n ** K-MT FINISHED! Elapsed time: %f sec \n", (elapsed));
-    //assert((G.size()*k == points_to.size()) && "FATAL ERROR WHILE FINISHING kMT: Number of edges does not match!\n");
-    //DONE
-    return true;
-}
-
-//-------------------------------------//
 ///
 /// \brief kMT: do kMXT
 /// \param G: input graph g
@@ -227,11 +140,7 @@ bool kMT_f(const Graph &G,
 /// \param minWeight: edge minimum weight to be selected
 /// \return
 ///
-bool kMT(const Graph &G,
-         std::vector<edge> &points_to,
-         std::vector<uint> &isolated,
-         const int &k,
-         const int &minWeight)
+bool kMT(const Graph &G, std::vector<edge> &points_to, const int &k, const int &minWeight)
 {
     printf("\n Now Doing k-MT(w) ... \n");
     //declaring comparator for min heap
@@ -261,8 +170,12 @@ bool kMT(const Graph &G,
             if (q.size() < k){q.push(p);continue;}
             if (comm > q.top().first) //if number of comms is greater than top of min heap
             {
+                if (q.size() < k)   q.push(p); //if size is < k
+                else if (q.size() == k) //if it is full, pop
+                {
                     q.pop();
                     q.push(p);
+                }
             }
             else if (comm == q.top().first) //if equal, take 1 at ran
             {
@@ -274,8 +187,8 @@ bool kMT(const Graph &G,
                 }
             }
         }
-        if (q.empty())  isolated.push_back(i); //if q is empty then V[i] is isolated
         // points to the highest common neighbours
+
         while(!q.empty())
         {
             std::pair<uint,uint> p = q.top();
@@ -363,6 +276,50 @@ bool kMT(const Graph &G, std::vector<edge> &points_to, const int &k)
 }
 
 ///
+/// \brief process: do aggregation III.a
+/// \param G
+///
+/*
+bool process(const Graph &G, std::vector<edge> &points_to)
+{
+    printf("\n Processing ... \n");
+
+    for (size_t i = 0; i < G.size(); i++)
+    {
+        //get main vertex v adjacency
+        adj_list v_adj = G[i];
+        uint max = 0;
+        std::vector<uint> dup_max;
+
+        for (size_t j = 0; j < v_adj.size(); j++)
+        {
+            //get neighbour vertex u adjacency
+            adj_list u_adj = G[v_adj[j]];
+            unsigned int comm = Util::NumberOfCommonElement(v_adj, u_adj); //number of common
+            if (comm == max)    dup_max.push_back(v_adj[j]);
+            else if (comm > max)
+            {
+                max = comm;
+                dup_max.clear();
+                dup_max.push_back(v_adj[j]);
+            }
+        }
+        // points to the highest common neighbours
+        // if there are more than 1, pick 1 at random
+        if (dup_max.size() == 1)    points_to.push_back(edge(i, dup_max[0]));
+        else
+        {
+            std::uniform_int_distribution<uint> dis(0, dup_max.size()-1);
+            uint ran = dis(gen);
+            points_to.push_back(edge(i,dup_max[ran])); //return the index of chosen vertex
+        }
+    }
+    //DONE
+    return true;
+}
+*/
+
+///
 /// \brief build_graph: build graph from input
 /// \param raw_edge: std::vector of lines read from input
 /// \param myGraph: empty Graph to write
@@ -381,13 +338,10 @@ bool build_graph(const std::vector<edge> &raw_edge, const uint &MAX_V, Graph &my
         edge e = raw_edge.at(i);
         uint from = e.first, to = e.second;
         assert(from < (MAX_V+1) && "ASSERTION FAILED! INDEX OUT OF BOUND");
-        adj_list v = myGraph[from], u = myGraph[to];
-        if (std::find(v.begin(), v.end(),to)==v.end())
-            myGraph[from].push_back(to); //get adj_list of source vertex
-        if (std::find(u.begin(), u.end(),from)==u.end())
-            myGraph[to].push_back(from); // not adding double edge
+        myGraph[from].push_back(to); //get adj_list of source vertex
+        //myGraph[to].push_back(from); // not adding double edge
         //check for duplicate neighbour
-
+        //if (std::find(v.begin(), v.end(),value)!=v.end())
     }
     //sort each adj_list
     uint sum_d = 0;
@@ -405,31 +359,14 @@ bool build_graph(const std::vector<edge> &raw_edge, const uint &MAX_V, Graph &my
 
 
 ///
-/// \brief edgeComparator: custom edge comparator
-/// \param a
-/// \param b
-/// \return
-///
-static bool edgeComparator(const edge & a, const edge & b)
-{
-    return (std::minmax(a.first, a.second) <
-                std::minmax(b.first, b.second));
-}
-
-///
 /// \brief read_graph: Read in edge.txt file
 /// it is assumed that each line contains source'\t'target (seperated by tab)
 /// it is assumed that index starts from 0
 ///
 bool read_input(const char * filepath, std::vector<edge> &raw_edge, uint &MAX_V)
 {
-    std::string exceptionFile("network.dat");
-    //do reading
-    std::string path(filepath);
-    bool except = (path.find(exceptionFile)!=std::string::npos);
     uint MIN_V = 0;
     std::ifstream infile(filepath);
-    std::set<edge, bool(*)(const edge &a, const edge &b)> s(&edgeComparator);
     if (!infile.good())
     {
         printf("File Erorr! Terminating ...");
@@ -445,13 +382,12 @@ bool read_input(const char * filepath, std::vector<edge> &raw_edge, uint &MAX_V)
             printf("Error While Reading Input! Terminating ...");
             return false;
         } // error
-        if(except){ a-=1;   b-=1;}
         // process pair (a,b)
         if (std::max(a,b) > MAX_V)  MAX_V = std::max(a,b);
         if (std::min(a,b) < MIN_V)  MIN_V = std::min(a,b);
-        s.insert(edge(a,b));
+        edge e(a,b);
+        raw_edge.push_back(e);
     }
-    raw_edge.assign(s.begin(),s.end());
     printf("Finished Reading Edge File!\n");
     printf("Number of Edges: %d \n",raw_edge.size());
     printf("(Recheck) Vertex with smallest index: %lu; Largest index: %lu \n", MIN_V, MAX_V);
@@ -471,7 +407,9 @@ uint readCommunityFile(std::vector<std::vector<uint> > &community, const char * 
 {
     printf("Parsing Community File: %s ... \n", filepath);
     //an exception is added here for LFR indices, since LFR index starts from 0
-    std::string exceptionFile("community.dat");
+    std::set<std::string> exception;
+    exception.insert("community.dat");
+
     //do reading
     std::ifstream infile(filepath);
     if (!infile.good())
@@ -479,13 +417,10 @@ uint readCommunityFile(std::vector<std::vector<uint> > &community, const char * 
         printf("File Erorr! Terminating ... \n");
         return 0;
     }
-    //bool except = (exception.find(std::string(filepath)) != exception.end());
-    std::string path(filepath);
-    bool except = (path.find(exceptionFile)!=std::string::npos);
+    bool except = (exception.find(std::string(filepath)) != exception.end());
     std::string line;
     uint MAX_C = 0, MAX_V = 0;
     std::vector<edge> membership;
-    std::getline(infile,line); //skip the first line
     while (std::getline(infile, line))
     {
         std::istringstream iss(line);
@@ -497,7 +432,7 @@ uint readCommunityFile(std::vector<std::vector<uint> > &community, const char * 
         } // error
         // process pair (a,b)
         if (except){ a-=1; b-=1;}//reduce index by 1 in cases of i.e. LFR
-        if (b > MAX_C && b != INT_MAX)  MAX_C = b;
+        if (b > MAX_C)  MAX_C = b;
         if (a > MAX_V)  MAX_V = a;
         edge e(a,b);
         membership.push_back(e);
@@ -519,6 +454,7 @@ uint readCommunityFile(std::vector<std::vector<uint> > &community, const char * 
 
     for(auto & comm: community)
         std::sort(comm.begin(), comm.end()); //sort for clustering matching
+
     return MAX_V;
 }
 
@@ -534,9 +470,7 @@ void CalculateClusterComparison(const char * truthfile, const char * clusterfile
     if (MAX_V_t == MAX_V_r && MAX_V_t != 0)
     {
         printf("Calculating Clustering Quality ... \n");
-        uint N = MAX_V_t;
-        //uint N = MAX_V_t + 1; //index starts from 0
-        std::vector<double> quality = Util::ComputePairWiseMatchingIndex(N, truth, result);
+        std::vector<double> quality = Util::ComputePairWiseMatchingIndex(MAX_V_t, truth, result);
         printf("RAND: %f\tJACCARD: %f\tARI: %f\n", quality[0], quality[1], quality[2]);
     }
     else
@@ -705,16 +639,15 @@ void autoRunHiddenBlockModel()
     std::string record = "*AutoRunHiddenBlockModel: Within Edge = 2 Inter-edge";
     record += "\nn\tq\tp\tk\t#Comp\tfractionofWrongEdge\tRAND\tJACCARD\tARI\n";
     //params
-    int l_min = 5000,
-        l_max = 5000,
+    int l_min = 500,
+        l_max = 3500,
         l_step = 500,
         no_runs = 5;
     for (int l = l_min; l <= l_max; l += l_step)
     {
         int n = l*4;
-        double c = 0.45;
-        double p_threshold = 1/(pow(n,c)), // p is kept at the threshold
-               max_q = 10*p_threshold, //twice as many inter-cluster edges
+        double p_threshold = sqrt(n)/(n), // p is kept at the threshold
+               max_q = 2.6*2.6*2*p_threshold, //twice as many inter-cluster edges
                q_stepsize = p_threshold;
                //q_stepsize = (q_threshold*4)/10;
         for (double q = 0.0; q < max_q ; q+=q_stepsize)
@@ -882,15 +815,14 @@ void geoGraphExp(const char * filePath, const double &limitingDistance)
     success = geoG.generateGeoDiscGraph(G, limitingDistance);
     if (!success){printf("GeoGraph Generating: Failed!\n"); return;}
     //save the graph
-    //GraphUtil::saveGraphAsUniqueEdgeList(G, "C:/Users/Dumex/Desktop/Small_Set/KMXT/Tralfagar/geograph.txt", ',');
+    //GraphUtil::saveGraphAsUniqueEdgeList(G, "C:/Users/Dumex/Desktop/GeoEXp/geograph.txt", ',');
     //do work
     //
     for (int k = 1; k <= 4; k++)
     {
         std::vector<edge> hier;
-        std::vector<uint> isolated;
         //kMT(G,hier,k);
-        kMT(G,hier,isolated,k,80);
+        kMT(G,hier,k,80);
         std::stringstream ss;
         /* Saving the current kMXT
          *
@@ -908,7 +840,7 @@ void geoGraphExp(const char * filePath, const double &limitingDistance)
         std::ostringstream sizedis, sizedis_file, ashapeinput;
         //FILE HEADERS
         sizedis << "comm;size\n";
-        sizedis_file << "C:/Users/Dumex/Desktop/Small_Set/KMXT/Tralfagar/clusterSize_d" << limitingDistance <<"_k"  << k << ".txt";
+        sizedis_file << "C:/Users/Dumex/Desktop/Tokyo_EXP/clusterSize_d" << limitingDistance <<"_k"  << k << ".txt";
         // CALCULATE AVERAGE SIZE
         for (int i = 0; i < communities.size(); i++)
         {
@@ -957,7 +889,7 @@ void geoGraphExp(const char * filePath, const double &limitingDistance)
         writeStringToFile(&sizedis.str()[0], &sizedis_file.str()[0]);
         //WRITE CONVEX HULL TO FILE
         std::stringstream oo;
-        oo << "C:/Users/Dumex/Desktop/Small_Set/KMXT/Tralfagar/ConvexHull_" << k << "/";
+        oo << "C:/Users/Dumex/Desktop/Tokyo_EXP/ConvexHull_" << k << "/";
         geoG.removeWithinPolygons(allpos); //uncomment this line to remove all polygons reside within others
         saveConvexHulls(allpos, &oo.str()[0]); //CONVEX HULL FOR DRAWING ON QGIS
         saveConvexHullsPolygon(allpos, &oo.str()[0]); //CONVEX HULL FOR DENSITY CALCULATION
@@ -1052,54 +984,6 @@ void geoGraphExp(const Graph &G)
         writeStringToFile(&ashapeinput.str()[0],&oo.str()[0]);
     }
 }
-
-
-
-///
-/// \brief inspectingCommunity: inspecting the given graph for clustering coeffcient
-/// \param G
-///
-float community_clustering_coefficient(const Graph &in,
-                                      const std::vector<std::vector<uint> > &communities)
-{
-    printf("\nCalulating clustering coefficient of induced subgraphs...");
-    //get the new graph
-    Graph G;
-    GraphUtil::isolate_communities(in, communities, G);
-    //get the unique edge list
-    std::vector<edge> E, newE;
-    GraphUtil::get_unique_edge_from_graph(G, E);
-    GraphUtil::reindex_edge(E, newE);
-    //init BoostGraph
-    typedef boost::adjacency_list<boost::setS, boost::vecS, boost::undirectedS> BoostGraph;
-    BoostGraph BG;
-
-    for(auto &e : newE)
-    {
-        boost::add_edge(e.first, e.second, BG);
-    }
-    printf("Fragment Subgraph H V-%d, E-%d\n", boost::num_vertices(BG), boost::num_edges(BG));
-
-    // The clustering property, container, and map define the containment
-    // and abstract accessor for the clustering coefficients of vertices.
-    typedef boost::exterior_vertex_property<BoostGraph, float> ClusteringProperty;
-    typedef ClusteringProperty::container_type ClusteringContainer;
-    typedef ClusteringProperty::map_type ClusteringMap;
-
-    ClusteringContainer coefs(boost::num_vertices(BG));
-    ClusteringMap cm(coefs, BG);
-    float cc = boost::all_clustering_coefficients(BG, cm); //ignore this, isolated vertices are considered discarded
-    /*
-    boost::graph_traits<BoostGraph>::vertex_iterator i, end;
-    /*
-    for(boost::tie(i, end) = boost::vertices(BG); i != end; ++i) {
-            std::cout << boost::get(cm, *i) << '\n';
-        }
-        */
-    printf("!\nDone !!!");
-   return cc;
-}
-
 //------------------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------
 //----------------------------------- GEOGRAPHICAL GRAPH END -------------------------------------
@@ -1109,158 +993,67 @@ float community_clustering_coefficient(const Graph &in,
 
 int main(int argc, char *argv[])
 {
+    std::string inPath = "C:/Users/Dumex/Desktop/GeoEXp/testGraph_D_10m.txt";
+    //read file
+    std::vector<edge> raw_edge; //edge file
+    uint MAX_V = 0; //highest index vertex
+    //start loading
+    bool load = read_input(&inPath[0], raw_edge, MAX_V);
+    if (!load)   {printf("Problem While Reading Input! Terminating ... \n"); return 0;}
+    //load success
+    Graph G;
+    bool build = build_graph(raw_edge, MAX_V, G);
+    if (!build) {printf("Problem While Building Graph ! Terminating ... \n"); return 0;}
+    //build sucess
+    raw_edge.clear(); //in case the graph input is large
+    geoGraphExp(G);
     //geo graph but load edge
-    //geoGraphExp("C:/Users/Dumex/Desktop/Small_Set/tralfagar.txt", 0.01);
-    //return 0;
+    //geoGraphExp("C:/Users/Dumex/Desktop/GeoEXp/innerLondon.txt", 0.01);
     /* BLOCK MODEL EXP*/
-  // autoRunHiddenBlockModel_FixedDegree_FixedPrThreshold(1000,2000,10,2);
-    autoRunHiddenBlockModel();
-  // HiddenBlockModel_ClusteringCoefficient_EXP(2500);
-    return 0;
-    gen.seed(time(0) + _getpid());
-    /*
-    for (int k = 10; k <= 15; k++)
+  //  autoRunHiddenBlockModel_FixedDegree_FixedPrThreshold(1000,2000,10,2);
+  // autoRunHiddenBlockModel();
+  //  HiddenBlockModel_ClusteringCoefficient_EXP(2500);
+    /* Main Terminal
+    if (argc == 4 && argv[1][1] == 'c') // ./ragg -c filepath outpath
     {
-        uint n = 100000;
-        float p = (float) k/n;
-        GraphGen gen;
-        Graph G;
-        gen.generateGnp(G,n,p);
-        std::stringstream path;
-        path << "C:/Users/Dumex/Desktop/Social_Final/Gnp_speedtest/n_" << n
-             << "_p_" << p << ".txt";
-        GraphUtil::saveGraphAsUniqueEdgeList(G, &path.str()[0], '\t');
-    }*/
-
-
-   //  Main Terminal
-    if (argc == 6 && argv[1][1] == 'c') // ./ragg -c filepath outpath truthpath
-    {
-        /*
-         *  BUILD GRAPH AND Ground truth communities
-         */
         gen.seed(time(0) + _getpid());
         outPath = argv[3];
         //read file
         std::string filepath(argv[2]);
-        std::vector<edge> rawEdge; //edge file
+        std::vector<edge> raw_edge; //edge file
         uint MAX_V = 0; //highest index vertex
         //start loading
-        bool load = read_input(&filepath[0], rawEdge, MAX_V);
+        bool load = read_input(&filepath[0], raw_edge, MAX_V);
         if (!load)   {printf("Problem While Reading Input! Terminating ... \n"); return 0;}
-
         //load success
         Graph G;
-        bool build = build_graph(rawEdge, MAX_V, G);
+        bool build = build_graph(raw_edge, MAX_V, G);
         if (!build) {printf("Problem While Building Graph ! Terminating ... \n"); return 0;}
-        GraphUtil::saveGraphAsUniqueEdgeList(G,"C:/Users/Dumex/Desktop/Social_Final/LFR/smaller/gephi_in.csv", ',');
-        //return 0;
-        /*
-        //get the edge weight distribution
-        printf("\n ** Geting Edge W **\n");
-        std::vector<uint> edgeW;
-        GraphUtil::getEdgeTriangleDistribution(G, rawEdge, edgeW);
-        std::ostringstream ws;
-        for(size_t i = 0; i < edgeW.size(); i++)    ws << i << "\t" << edgeW[i] << '\n';
-        writeStringToFile(&ws.str()[0], "C:/Users/Dumex/Desktop/Social_Final/kmxt_w/lfr_n_10k_k50_maxk_100_size_10_1000/edgeWeight.txt");
-        return 0;
-        //*/
-        float C = GraphUtil::graph_clustering_coefficient(rawEdge);
-        std::vector<std::vector<uint> > truthCommunities;
-        readCommunityFile(truthCommunities, argv[4]);
-        //float groundTruthCC = community_clustering_coefficient(G, truthCommunities);
-        //printf("\n ------ CC of induced ground truth communities:\t%f------\n",groundTruthCC);
-        /*
-         *  DOING WORK
-         */
         //build sucess
-        rawEdge.clear(); //in case the graph input is large
+        raw_edge.clear(); //in case the graph input is large
         std::vector<edge> hierarchy; //result is stored as edge (selected->neighbour)
-        std::vector<std::vector<uint> > communities; //community vector
-        std::vector<uint> isolated;
-
         //start processing
         std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now(); //start timer
-        //for(uint minWeight = 0; minWeight <= 220; minWeight+=20)
-        //for(uint k = 1; k <= 5; k++)
-        //{
-        uint k = 2;
-        uint minWeight = 3;
-        bool success = kMT(G,
-                           hierarchy,
-                           isolated,
-                           k,
-                           minWeight);
+        bool success = kMT(G, hierarchy, 1);
         if (!success)    {printf("Some problem encountered while clustering the graph! Terminating ... \n"); return 0;}
         std::chrono::high_resolution_clock::time_point end = std::chrono::high_resolution_clock::now(); //end timer
-        postprocess(hierarchy,communities,MAX_V);
+        postprocess(hierarchy,(MAX_V+1));
         std::chrono::duration<double> elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
-        /*
-         * FINISHING
-         */
-        //finishing
-        //Cleaning up: i.e. remove isolated vertices etc.
-        std::vector<std::vector<uint> > cleanedCommunities, modifiedCommunities;
-        for(int i = 0; i < communities.size(); i++)
-        {
-            if (communities[i].size() > 1)  cleanedCommunities.push_back(communities[i]);
-        }
-
-        GraphUtil::modifyCommunity(truthCommunities,
-                                   isolated,
-                                   modifiedCommunities);
-        //Results
         printf("\n ** Finished! Elapsed time: %f sec \n", (elapsed));
         printf("Results are written in the " );
         printf(outPath);
         printf("\s file! \n");
-        //calculate modularity
-        uint nonIsolatedVertices = G.size() - isolated.size();
-        float Q = GraphUtil::modularity(G, communities),
-              MC =  community_clustering_coefficient(G, communities),
-              mARI = Util::ComputePairWiseMatchingIndex(nonIsolatedVertices,
-                                                        modifiedCommunities,
-                                                        cleanedCommunities)[2], //*/,
-              averageDiam = GraphUtil::get_average_diameter_of_subgraphs(G, communities);
-
-        FILE * statfile;
-        statfile = fopen(argv[5], "a");
-        int averageSize = 0;
-        if (cleanedCommunities.size() > 0) averageSize = nonIsolatedVertices/(cleanedCommunities.size());
-        printf("SIZE: %d", averageSize);
-        fprintf(statfile,
-               "\n ----------------- RESULTS ----------------"
-               "\n ---- Param: k-%d; minWeight-%d -----------"
-               "\n ** Modularity Q:\t%f "
-               "\n ** Global Clustering Coefficient:\t%f "
-               "\n ** Subgraphs clustering coefficient:\t%f"
-               "\n ** Modified ARI (subtracting isolated vertices):\t%f"
-               "\n ** Average Communitiy size:\t%d"
-               "\n ** Average Diamater:\t%f"
-               "\n ** No of Communities:\t%d"
-               "\n ** No of isolated:\t%d"
-               "\n ------------------------------------------",
-                k, minWeight,
-                Q, C, MC,
-                mARI,
-                averageSize,
-                averageDiam,
-                cleanedCommunities.size(),
-                isolated.size());
-        //glolba clustering coefficient
-        //calculate connected component clustering coefficient
-        hierarchy.clear(); communities.clear(); isolated.clear(); //remove later
-        //}
     }
     else if (argc == 4 && argv[1][1] == 'q')    // ./ragg -q community1 community2
     {
-        //std::string truthfile("community.dat"), clusterfile("cluster.txt");
-        CalculateClusterComparison(argv[2], argv[3]);
+        std::string truthfile("community.dat"), clusterfile("cluster.txt");
+        CalculateClusterComparison(&truthfile[0], &clusterfile[0]);
     }
     else
         printf("\nBad input format! \n"
                "For clustering try: ./ragg -c filename.txt\n"
                "For calculating quality try: ./ragg -q community1 community2\n");
+    */
     return 0;
 
 }
